@@ -32,7 +32,9 @@ import {
   Search,
   X,
   Zap,
-  TrendingDown
+  TrendingDown,
+  Key,
+  Upload
 } from 'lucide-react';
 import UploadImage from '@/components/UploadImage';
 import { useToast } from '@/components/ui/use-toast';
@@ -75,6 +77,13 @@ export default function AdminDashboard() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  
+  // Password reset states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [userToResetPassword, setUserToResetPassword] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Bank management states
   const [editingBank, setEditingBank] = useState<any>(null);
@@ -207,6 +216,7 @@ export default function AdminDashboard() {
       setLoading(true);
       
       // Load stats
+      console.log('📊 Loading admin stats...');
       const statsResponse = await fetch('/api/admin/stats', {
         credentials: 'include',
         headers: {
@@ -214,9 +224,16 @@ export default function AdminDashboard() {
         }
       });
       
+      console.log('📊 Stats response status:', statsResponse.status);
+      
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
+        console.log('📊 Stats data received:', statsData);
         setStats(statsData);
+      } else {
+        console.error('❌ Failed to load stats:', statsResponse.status, statsResponse.statusText);
+        const errorText = await statsResponse.text();
+        console.error('❌ Error response:', errorText);
       }
 
       // Load users
@@ -602,6 +619,84 @@ export default function AdminDashboard() {
         description: 'Không thể xóa người dùng',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Password reset functions
+  const handleResetPassword = (user: any) => {
+    console.log('🔍 Resetting password for user:', {
+      username: user.username,
+      id: user._id,
+      idType: typeof user._id,
+      idString: user._id?.toString()
+    });
+    setUserToResetPassword(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPasswordModal(true);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!userToResetPassword) return;
+
+    // Validate password
+    if (newPassword.length < 6) {
+      toast({
+        title: 'Lỗi',
+        description: 'Mật khẩu phải có ít nhất 6 ký tự',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Lỗi',
+        description: 'Mật khẩu xác nhận không khớp',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsResettingPassword(true);
+
+    try {
+      console.log('🚀 Making API call to reset password for user ID:', userToResetPassword._id);
+      const response = await fetch(`/api/admin/users/${userToResetPassword._id}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ newPassword })
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Thành công',
+          description: `Đã đổi mật khẩu cho ${userToResetPassword.username}`,
+        });
+        setShowPasswordModal(false);
+        setUserToResetPassword(null);
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const error = await response.json();
+        toast({
+          title: 'Lỗi',
+          description: error.message || 'Không thể đổi mật khẩu',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast({
+        title: 'Lỗi',
+        description: 'Không thể đổi mật khẩu',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -1184,6 +1279,15 @@ export default function AdminDashboard() {
                             className="hover:bg-blue-50 hover:text-blue-600"
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleResetPassword(user)}
+                            className="hover:bg-yellow-50 hover:text-yellow-600"
+                            title="Đổi mật khẩu"
+                          >
+                            <Key className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -1891,6 +1995,742 @@ export default function AdminDashboard() {
 
           </div>
         )}
+
+        {/* Password Reset Modal */}
+        <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-yellow-600" />
+                Đổi mật khẩu người dùng
+              </DialogTitle>
+              <DialogDescription>
+                Đổi mật khẩu cho {userToResetPassword?.username}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Nhập mật khẩu mới"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isResettingPassword}
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isResettingPassword}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowPasswordModal(false)}
+                disabled={isResettingPassword}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={confirmResetPassword}
+                disabled={isResettingPassword || !newPassword || !confirmPassword}
+                className="bg-yellow-600 hover:bg-yellow-700"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Đang đổi mật khẩu...
+                  </>
+                ) : (
+                  <>
+                    <Key className="mr-2 h-4 w-4" />
+                    Đổi mật khẩu
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete User Confirmation Modal */}
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-red-600" />
+                Xác nhận xóa người dùng
+              </DialogTitle>
+              <DialogDescription>
+                Bạn có chắc chắn muốn xóa người dùng <strong>{userToDelete?.username}</strong>? Hành động này không thể hoàn tác.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={confirmDeleteUser}
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Xóa người dùng
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* User View/Edit Modal */}
+        <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                {editingUser ? `Thông tin người dùng: ${editingUser.username}` : 'Xem thông tin người dùng'}
+              </DialogTitle>
+              <DialogDescription>
+                Xem và chỉnh sửa thông tin chi tiết của người dùng
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingUser && (
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="username">Tên đăng nhập</Label>
+                    <Input
+                      id="username"
+                      value={editingUser.username || ''}
+                      onChange={(e) => setEditingUser({...editingUser, username: e.target.value})}
+                      placeholder="Tên đăng nhập"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={editingUser.email || ''}
+                      onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                      placeholder="Email"
+                    />
+                  </div>
+                </div>
+
+                {/* Role and Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="role">Vai trò</Label>
+                    <Select
+                      value={editingUser.role || 'user'}
+                      onValueChange={(value) => setEditingUser({...editingUser, role: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn vai trò" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Người dùng</SelectItem>
+                        <SelectItem value="admin">Quản trị viên</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="status">Trạng thái tài khoản</Label>
+                    <Select
+                      value={editingUser.status?.active ? 'active' : 'inactive'}
+                      onValueChange={(value) => setEditingUser({
+                        ...editingUser, 
+                        status: {...editingUser.status, active: value === 'active'}
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Hoạt động</SelectItem>
+                        <SelectItem value="inactive">Bị khóa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Balance Information */}
+                <div>
+                  <Label htmlFor="availableBalance">Số dư khả dụng</Label>
+                  <Input
+                    id="availableBalance"
+                    type="number"
+                    value={editingUser.balance?.available || 0}
+                    onChange={(e) => setEditingUser({
+                      ...editingUser, 
+                      balance: {...editingUser.balance, available: parseFloat(e.target.value) || 0}
+                    })}
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Bank Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Thông tin ngân hàng</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="bankName">Tên ngân hàng</Label>
+                      <Input
+                        id="bankName"
+                        value={editingUser.bank?.name || ''}
+                        onChange={(e) => setEditingUser({
+                          ...editingUser, 
+                          bank: {...editingUser.bank, name: e.target.value}
+                        })}
+                        placeholder="Tên ngân hàng"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="accountNumber">Số tài khoản</Label>
+                      <Input
+                        id="accountNumber"
+                        value={editingUser.bank?.accountNumber || ''}
+                        onChange={(e) => setEditingUser({
+                          ...editingUser, 
+                          bank: {...editingUser.bank, accountNumber: e.target.value}
+                        })}
+                        placeholder="Số tài khoản"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label htmlFor="accountHolder">Chủ tài khoản</Label>
+                      <Input
+                        id="accountHolder"
+                        value={editingUser.bank?.accountHolder || ''}
+                        onChange={(e) => setEditingUser({
+                          ...editingUser, 
+                          bank: {...editingUser.bank, accountHolder: e.target.value}
+                        })}
+                        placeholder="Tên chủ tài khoản"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* CCCD Images */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <CreditCard className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-800">Hình ảnh CCCD/CMND</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* CCCD Front */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <Label className="text-sm font-medium text-gray-700">Mặt trước CCCD</Label>
+                      </div>
+                      <div className="relative group">
+                        {editingUser.verification?.cccdFront ? (
+                          <div className="relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl">
+                            <img
+                              src={editingUser.verification.cccdFront}
+                              alt="CCCD Mặt trước"
+                              className="w-full h-56 object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                              <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => window.open(editingUser.verification.cccdFront, '_blank')}
+                                  className="bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white transition-all duration-200 shadow-lg"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Xem
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (confirm('Bạn có chắc muốn xóa hình mặt trước CCCD?')) {
+                                      setEditingUser({
+                                        ...editingUser,
+                                        verification: {
+                                          ...editingUser.verification,
+                                          cccdFront: ''
+                                        }
+                                      });
+                                    }
+                                  }}
+                                  className="bg-red-500/90 backdrop-blur-sm hover:bg-red-600 transition-all duration-200 shadow-lg"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Xóa
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-56 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 transition-all duration-300 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50 hover:to-blue-100">
+                            <div className="text-center text-gray-500">
+                              <div className="p-3 bg-gray-200 rounded-full w-fit mx-auto mb-3">
+                                <CreditCard className="h-6 w-6" />
+                              </div>
+                              <p className="text-sm font-medium">Chưa có hình mặt trước</p>
+                              <p className="text-xs text-gray-400 mt-1">Tải lên để xem</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* CCCD Back */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <Label className="text-sm font-medium text-gray-700">Mặt sau CCCD</Label>
+                      </div>
+                      <div className="relative group">
+                        {editingUser.verification?.cccdBack ? (
+                          <div className="relative overflow-hidden rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl">
+                            <img
+                              src={editingUser.verification.cccdBack}
+                              alt="CCCD Mặt sau"
+                              className="w-full h-56 object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                              <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => window.open(editingUser.verification.cccdBack, '_blank')}
+                                  className="bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white transition-all duration-200 shadow-lg"
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Xem
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (confirm('Bạn có chắc muốn xóa hình mặt sau CCCD?')) {
+                                      setEditingUser({
+                                        ...editingUser,
+                                        verification: {
+                                          ...editingUser.verification,
+                                          cccdBack: ''
+                                        }
+                                      });
+                                    }
+                                  }}
+                                  className="bg-red-500/90 backdrop-blur-sm hover:bg-red-600 transition-all duration-200 shadow-lg"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Xóa
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-56 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 transition-all duration-300 hover:border-green-300 hover:bg-gradient-to-br hover:from-green-50 hover:to-green-100">
+                            <div className="text-center text-gray-500">
+                              <div className="p-3 bg-gray-200 rounded-full w-fit mx-auto mb-3">
+                                <CreditCard className="h-6 w-6" />
+                              </div>
+                              <p className="text-sm font-medium">Chưa có hình mặt sau</p>
+                              <p className="text-xs text-gray-400 mt-1">Tải lên để xem</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upload New CCCD Images */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <Upload className="h-5 w-5 text-green-600" />
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-800">Tải lên hình CCCD mới</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <Label htmlFor="cccdFrontUpload" className="text-sm font-medium text-gray-700">
+                          Tải lên mặt trước CCCD
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="cccdFrontUpload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                // Set loading state
+                                const uploadButton = document.getElementById('cccdFrontUploadBtn');
+                                const originalText = uploadButton?.textContent;
+                                if (uploadButton) {
+                                  uploadButton.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div> Đang tải lên...';
+                                  uploadButton.setAttribute('disabled', 'true');
+                                }
+
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  formData.append('type', 'cccd');
+                                  formData.append('userId', editingUser._id);
+                                  
+                                  const response = await fetch('/api/admin/upload-cccd', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                    },
+                                    body: formData
+                                  });
+                                  
+                                  if (response.ok) {
+                                    const result = await response.json();
+                                    if (result.success) {
+                                      setEditingUser({
+                                        ...editingUser,
+                                        verification: {
+                                          ...editingUser.verification,
+                                          cccdFront: result.url
+                                        }
+                                      });
+                                      toast({
+                                        title: '✅ Thành công',
+                                        description: 'Đã tải lên hình mặt trước CCCD',
+                                      });
+                                    } else {
+                                      toast({
+                                        title: '❌ Lỗi',
+                                        description: result.message || 'Không thể tải lên hình ảnh',
+                                        variant: 'destructive',
+                                      });
+                                    }
+                                  } else {
+                                    toast({
+                                      title: '❌ Lỗi',
+                                      description: 'Không thể tải lên hình ảnh',
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                } catch (error) {
+                                  toast({
+                                    title: '❌ Lỗi',
+                                    description: 'Có lỗi xảy ra khi tải lên',
+                                    variant: 'destructive',
+                                  });
+                                } finally {
+                                  // Reset button state
+                                  if (uploadButton) {
+                                    uploadButton.innerHTML = originalText || 'Chọn file';
+                                    uploadButton.removeAttribute('disabled');
+                                  }
+                                  // Reset input
+                                  e.target.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="cccdFrontUpload"
+                            id="cccdFrontUploadBtn"
+                            className="flex items-center justify-center gap-2 w-full h-12 px-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50 hover:bg-blue-100 transition-all duration-200 cursor-pointer group"
+                          >
+                            <Upload className="h-4 w-4 text-blue-600 group-hover:text-blue-700" />
+                            <span className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
+                              Chọn file mặt trước
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <Label htmlFor="cccdBackUpload" className="text-sm font-medium text-gray-700">
+                          Tải lên mặt sau CCCD
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="cccdBackUpload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                // Set loading state
+                                const uploadButton = document.getElementById('cccdBackUploadBtn');
+                                const originalText = uploadButton?.textContent;
+                                if (uploadButton) {
+                                  uploadButton.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mx-auto"></div> Đang tải lên...';
+                                  uploadButton.setAttribute('disabled', 'true');
+                                }
+
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  formData.append('type', 'cccd');
+                                  formData.append('userId', editingUser._id);
+                                  
+                                  const response = await fetch('/api/admin/upload-cccd', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                    },
+                                    body: formData
+                                  });
+                                  
+                                  if (response.ok) {
+                                    const result = await response.json();
+                                    if (result.success) {
+                                      setEditingUser({
+                                        ...editingUser,
+                                        verification: {
+                                          ...editingUser.verification,
+                                          cccdBack: result.url
+                                        }
+                                      });
+                                      toast({
+                                        title: '✅ Thành công',
+                                        description: 'Đã tải lên hình mặt sau CCCD',
+                                      });
+                                    } else {
+                                      toast({
+                                        title: '❌ Lỗi',
+                                        description: result.message || 'Không thể tải lên hình ảnh',
+                                        variant: 'destructive',
+                                      });
+                                    }
+                                  } else {
+                                    toast({
+                                      title: '❌ Lỗi',
+                                      description: 'Không thể tải lên hình ảnh',
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                } catch (error) {
+                                  toast({
+                                    title: '❌ Lỗi',
+                                    description: 'Có lỗi xảy ra khi tải lên',
+                                    variant: 'destructive',
+                                  });
+                                } finally {
+                                  // Reset button state
+                                  if (uploadButton) {
+                                    uploadButton.innerHTML = originalText || 'Chọn file';
+                                    uploadButton.removeAttribute('disabled');
+                                  }
+                                  // Reset input
+                                  e.target.value = '';
+                                }
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor="cccdBackUpload"
+                            id="cccdBackUploadBtn"
+                            className="flex items-center justify-center gap-2 w-full h-12 px-4 border-2 border-dashed border-green-300 rounded-lg bg-green-50 hover:bg-green-100 transition-all duration-200 cursor-pointer group"
+                          >
+                            <Upload className="h-4 w-4 text-green-600 group-hover:text-green-700" />
+                            <span className="text-sm font-medium text-green-600 group-hover:text-green-700">
+                              Chọn file mặt sau
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Verification Status */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Trạng thái xác minh</h3>
+                  <div>
+                    <Label htmlFor="verificationStatus">Trạng thái xác minh</Label>
+                    <Select
+                      value={editingUser.verification?.verified ? 'verified' : 'pending'}
+                      onValueChange={(value) => setEditingUser({
+                        ...editingUser, 
+                        verification: {...editingUser.verification, verified: value === 'verified'}
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="verified">Đã xác minh</SelectItem>
+                        <SelectItem value="pending">Đang xác minh</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Additional Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Thông tin bổ sung</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="createdAt">Ngày tạo tài khoản</Label>
+                      <Input
+                        id="createdAt"
+                        value={editingUser.createdAt ? new Date(editingUser.createdAt).toLocaleString('vi-VN') : 'N/A'}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastLogin">Lần đăng nhập cuối</Label>
+                      <Input
+                        id="lastLogin"
+                        value={editingUser.lastLogin ? new Date(editingUser.lastLogin).toLocaleString('vi-VN') : 'N/A'}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="mt-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUserModal(false);
+                  setEditingUser(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleEditUser}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Cập nhật thông tin
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bank Edit Modal */}
+        <Dialog open={showBankModal} onOpenChange={setShowBankModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5 text-blue-600" />
+                {editingBank ? 'Chỉnh sửa ngân hàng' : 'Thêm ngân hàng mới'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingBank ? 'Chỉnh sửa thông tin ngân hàng' : 'Thêm thông tin ngân hàng mới'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editBankName">Tên ngân hàng</Label>
+                <Input
+                  id="editBankName"
+                  placeholder="VD: Vietcombank"
+                  value={editingBank?.name || ''}
+                  onChange={(e) => setEditingBank({...editingBank, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="editAccountNumber">Số tài khoản</Label>
+                <Input
+                  id="editAccountNumber"
+                  placeholder="Số tài khoản"
+                  value={editingBank?.accountNumber || ''}
+                  onChange={(e) => setEditingBank({...editingBank, accountNumber: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="editAccountHolder">Chủ tài khoản</Label>
+                <Input
+                  id="editAccountHolder"
+                  placeholder="Tên chủ tài khoản"
+                  value={editingBank?.accountHolder || ''}
+                  onChange={(e) => setEditingBank({...editingBank, accountHolder: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="editBranch">Chi nhánh</Label>
+                <Input
+                  id="editBranch"
+                  placeholder="Chi nhánh (tùy chọn)"
+                  value={editingBank?.branch || ''}
+                  onChange={(e) => setEditingBank({...editingBank, branch: e.target.value})}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBankModal(false);
+                  setEditingBank(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleUpdateBank}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                {editingBank ? 'Cập nhật' : 'Thêm'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Bank Delete Confirmation Modal */}
+        <Dialog open={showBankDeleteConfirm} onOpenChange={setShowBankDeleteConfirm}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-red-600" />
+                Xác nhận xóa ngân hàng
+              </DialogTitle>
+              <DialogDescription>
+                Bạn có chắc chắn muốn xóa ngân hàng <strong>{bankToDelete?.name}</strong>? Hành động này không thể hoàn tác.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowBankDeleteConfirm(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={confirmDeleteBank}
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Xóa ngân hàng
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

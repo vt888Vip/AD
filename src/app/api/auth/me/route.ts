@@ -36,11 +36,20 @@ export async function GET(request: NextRequest) {
     
     // Lấy thông tin người dùng từ database
     const db = await getMongoDb();
+    console.log('🔍 Looking up user with ID:', tokenData.userId);
     const user = await db.collection('users').findOne({ _id: new ObjectId(tokenData.userId) });
     
     if (!user) {
+      console.log('❌ User not found in database');
       return NextResponse.json({ success: false, message: 'Không tìm thấy người dùng' }, { status: 404 });
     }
+    
+    console.log('✅ User found:', {
+      id: user._id,
+      username: user.username,
+      role: user.role,
+      active: user.status?.active
+    });
 
     // Lấy số dư từ field balance của user
     const userBalance = user.balance || { available: 0, frozen: 0 };

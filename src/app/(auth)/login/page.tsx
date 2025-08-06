@@ -49,28 +49,73 @@ export default function LoginPage() {
     }
 
     try {
+      console.log('🔍 Attempting login with username:', username);
       const result = await login(username.trim(), password);
+      console.log('🔍 Login result:', result);
 
       if (result?.success) {
-        // Kiểm tra xem user có phải là admin không
-        if (isAdmin()) {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('loginTimestamp', Date.now().toString());
+        console.log('✅ Login successful, verifying admin role...');
+        
+        // Thay vì dựa vào state, kiểm tra trực tiếp từ API
+        try {
+          const token = localStorage.getItem('token');
+          console.log('🔍 Token exists:', !!token);
+          
+          if (token) {
+            console.log('🔍 Calling /api/auth/me to verify admin role...');
+            const meResponse = await fetch('/api/auth/me', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Cache-Control': 'no-cache'
+              }
+            });
+            
+            if (meResponse.ok) {
+              const meData = await meResponse.json();
+              console.log('🔍 User data from API:', meData);
+              
+              // Kiểm tra trực tiếp từ API response
+              if (meData?.success && meData.user?.role === 'admin') {
+                console.log('✅ User confirmed as admin, proceeding to admin panel...');
+                
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('loginTimestamp', Date.now().toString());
 
-          setSuccessMessage("🎉 Đăng nhập thành công! Đang chuyển hướng đến Admin Panel...");
-          setIsRedirecting(true);
-          setIsLoading(false);
+                setSuccessMessage("🎉 Đăng nhập thành công! Đang chuyển hướng đến Admin Panel...");
+                setIsRedirecting(true);
+                setIsLoading(false);
 
-          setTimeout(() => {
-            router.replace('/admin');
-          }, 800);
-        } else {
-          // Nếu không phải admin, logout và hiển thị lỗi
-          await logout();
-          setError("⛔ Chỉ admin mới được phép truy cập hệ thống này.");
+                setTimeout(() => {
+                  router.replace('/admin');
+                }, 800);
+                return;
+              } else {
+                console.log('❌ User is not admin. Role:', meData.user?.role);
+                await logout();
+                setError("⛔ Chỉ admin mới được phép truy cập hệ thống này.");
+                setIsLoading(false);
+                return;
+              }
+            } else {
+              console.log('❌ Failed to verify user:', meResponse.status, meResponse.statusText);
+              setError("Không thể xác minh quyền truy cập. Vui lòng thử lại.");
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            console.log('❌ No token found after login');
+            setError("Lỗi xác thực. Vui lòng thử lại.");
+            setIsLoading(false);
+            return;
+          }
+        } catch (apiError) {
+          console.error('❌ Error verifying admin role:', apiError);
+          setError("Lỗi xác minh quyền admin. Vui lòng thử lại.");
           setIsLoading(false);
+          return;
         }
       } else {
+        console.log('❌ Login failed:', result?.message);
         setError(result?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
         setIsLoading(false);
       }
