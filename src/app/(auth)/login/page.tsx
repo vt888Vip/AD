@@ -49,20 +49,15 @@ export default function LoginPage() {
     }
 
     try {
-      console.log('🔍 Attempting login with username:', username);
       const result = await login(username.trim(), password);
-      console.log('🔍 Login result:', result);
 
       if (result?.success) {
-        console.log('✅ Login successful, verifying admin role...');
         
         // Thay vì dựa vào state, kiểm tra trực tiếp từ API
         try {
           const token = localStorage.getItem('token');
-          console.log('🔍 Token exists:', !!token);
           
           if (token) {
-            console.log('🔍 Calling /api/auth/me to verify admin role...');
             const meResponse = await fetch('/api/auth/me', {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -72,11 +67,9 @@ export default function LoginPage() {
             
             if (meResponse.ok) {
               const meData = await meResponse.json();
-              console.log('🔍 User data from API:', meData);
               
               // Kiểm tra trực tiếp từ API response
               if (meData?.success && meData.user?.role === 'admin') {
-                console.log('✅ User confirmed as admin, proceeding to admin panel...');
                 
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('loginTimestamp', Date.now().toString());
@@ -90,37 +83,31 @@ export default function LoginPage() {
                 }, 800);
                 return;
               } else {
-                console.log('❌ User is not admin. Role:', meData.user?.role);
                 await logout();
                 setError("⛔ Chỉ admin mới được phép truy cập hệ thống này.");
                 setIsLoading(false);
                 return;
               }
             } else {
-              console.log('❌ Failed to verify user:', meResponse.status, meResponse.statusText);
               setError("Không thể xác minh quyền truy cập. Vui lòng thử lại.");
               setIsLoading(false);
               return;
             }
           } else {
-            console.log('❌ No token found after login');
             setError("Lỗi xác thực. Vui lòng thử lại.");
             setIsLoading(false);
             return;
           }
         } catch (apiError) {
-          console.error('❌ Error verifying admin role:', apiError);
           setError("Lỗi xác minh quyền admin. Vui lòng thử lại.");
           setIsLoading(false);
           return;
         }
       } else {
-        console.log('❌ Login failed:', result?.message);
         setError(result?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
         setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Unexpected error during login:', err);
+    } catch (err) { 
       setError("Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại sau.");
       setIsLoading(false);
     }

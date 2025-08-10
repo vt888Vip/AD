@@ -2169,17 +2169,40 @@ export default function AdminDashboard() {
 
                 {/* Balance Information */}
                 <div>
-                  <Label htmlFor="availableBalance">Số dư khả dụng</Label>
+                  <Label htmlFor="availableBalance">Số dư khả dụng (VNĐ)</Label>
                   <Input
                     id="availableBalance"
-                    type="number"
-                    value={editingUser.balance?.available || 0}
-                    onChange={(e) => setEditingUser({
-                      ...editingUser, 
-                      balance: {...editingUser.balance, available: parseFloat(e.target.value) || 0}
-                    })}
+                    type="text"
+                    value={editingUser.balance?.available?.toLocaleString('vi-VN') || '0'}
+                    onChange={(e) => {
+                      // Lấy giá trị từ input và loại bỏ dấu phẩy
+                      const rawValue = e.target.value.replace(/,/g, '');
+                      
+                      // Chỉ cho phép số
+                      const numericValue = rawValue.replace(/[^0-9]/g, '');
+                      
+                      // Chuyển đổi thành số
+                      const numberValue = numericValue ? parseInt(numericValue, 10) : 0;
+                      
+                      // Cập nhật state với giá trị số
+                      setEditingUser({
+                        ...editingUser, 
+                        balance: {...editingUser.balance, available: numberValue}
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      // Chỉ cho phép số và các phím điều hướng
+                      const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+                      if (!allowedKeys.includes(e.key) && !/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     placeholder="0"
+                    className="font-mono"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Nhập số tiền, hệ thống sẽ tự động hiển thị dấu phẩy phân cách
+                  </p>
                 </div>
 
                 {/* Bank Information */}
