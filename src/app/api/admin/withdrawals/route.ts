@@ -55,6 +55,8 @@ export async function GET(req: NextRequest) {
 }
 
 // API để admin xử lý yêu cầu rút tiền
+// Lưu ý: Khi duyệt rút tiền, chỉ thay đổi trạng thái, KHÔNG trừ tiền từ tài khoản người dùng
+// Tiền sẽ được trừ khi admin thực hiện chuyển tiền thực tế
 export async function POST(req: NextRequest) {
   try {
     // Xác thực admin
@@ -117,19 +119,9 @@ export async function POST(req: NextRequest) {
         }, { status: 400 });
       }
       
-      // Trừ tiền khỏi tài khoản user
-      const newBalance = availableBalance - withdrawal.amount;
-      await db.collection('users').updateOne(
-        { _id: withdrawal.user },
-        { 
-          $set: { 
-            balance: typeof userBalance === 'number' ? newBalance : { ...userBalance, available: newBalance },
-            updatedAt: new Date()
-          } 
-        }
-      );
-      
-      console.log(`[ADMIN WITHDRAWALS] Đã trừ ${withdrawal.amount} VND từ user ${user.username}. Số dư mới: ${newBalance} VND`);
+      // KHÔNG trừ tiền khỏi tài khoản user - chỉ thay đổi trạng thái
+      // Tiền sẽ được trừ khi admin thực hiện chuyển tiền thực tế
+      console.log(`[ADMIN WITHDRAWALS] Đã duyệt yêu cầu rút tiền ${withdrawal.amount} VND của user ${user.username}. Số dư hiện tại: ${availableBalance} VND (không thay đổi)`);
     }
 
     // Cập nhật trạng thái yêu cầu rút tiền
@@ -153,7 +145,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: action === 'approve' ? 'Đã duyệt yêu cầu rút tiền' : 'Đã từ chối yêu cầu rút tiền'
+      message: action === 'approve' ? 'Đã duyệt yêu cầu rút tiền ' : 'Đã từ chối yêu cầu rút tiền'
     });
 
   } catch (error) {
