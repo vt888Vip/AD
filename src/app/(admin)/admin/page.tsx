@@ -1219,55 +1219,57 @@ export default function AdminDashboard() {
                       {/* Vai trò */}
                       <TableCell>
                         {user.role === 'admin' ? (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-purple-500 text-white">Quản trị viên</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold bg-purple-500 text-white whitespace-nowrap">Admin</span>
                         ) : (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-blue-500 text-white">Người dùng</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold bg-blue-500 text-white whitespace-nowrap">User</span>
                         )}
                       </TableCell>
                       {/* Số dư */}
                       <TableCell>
                         <div>
-                          <div className="font-bold text-green-600">
+                          <div className="font-bold text-green-600 text-sm">
                             {user.balance?.available?.toLocaleString() || 0}đ
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Đã nạp: {user.totalDeposited?.toLocaleString() || 0}đ
+                          <div className="text-[10px] text-gray-500">
+                            Nạp: {user.totalDeposited?.toLocaleString() || 0}đ
                           </div>
                         </div>
                       </TableCell>
                       {/* CCCD */}
                       <TableCell>
                         {user.verification?.verified ? (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-green-500 text-white">Đã xác minh</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold bg-green-500 text-white whitespace-nowrap">✓ Xác minh</span>
                         ) : (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-yellow-500 text-white">Đang xác minh</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold bg-yellow-500 text-white whitespace-nowrap">⏳ Chờ</span>
                         )}
                       </TableCell>
                       {/* Ngân hàng */}
                       <TableCell>
                         {user.bank?.name ? (
-                          <div className="bg-green-50 p-2 rounded-lg border border-green-200">
-                            <div className="font-medium text-green-800">{user.bank.name}</div>
-                            <div className="text-sm text-green-600 font-mono">{user.bank.accountNumber}</div>
-                            <div className="text-xs text-green-500">{user.bank.accountHolder}</div>
+                          <div className="bg-green-50 p-1 rounded border border-green-200">
+                            <div className="font-medium text-green-800 text-xs">{user.bank.name}</div>
+                            <div className="text-[10px] text-green-600 font-mono">{user.bank.accountNumber}</div>
+                            <div className="text-[10px] text-green-500 truncate">{user.bank.accountHolder}</div>
                           </div>
                         ) : (
-                          <div className="bg-gray-50 p-2 rounded-lg border border-gray-200">
-                            <span className="text-gray-500 text-sm">Chưa cập nhật</span>
+                          <div className="bg-gray-50 p-1 rounded border border-gray-200">
+                            <span className="text-gray-500 text-[10px]">Chưa cập nhật</span>
                           </div>
                         )}
                       </TableCell>
                       {/* Trạng thái tài khoản */}
                       <TableCell>
                         {user.status?.active ? (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-green-500 text-white">Hoạt động</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] font-semibold bg-green-500 text-white whitespace-nowrap">✓ Hoạt động</span>
                         ) : (
-                          <span className="rounded-full px-3 py-1 text-xs font-semibold bg-red-500 text-white">Bị khóa</span>
+                          <span className="rounded-full px-2 py-1 text-xs font-semibold bg-red-500 text-white whitespace-nowrap">🔒 Khóa</span>
                         )}
                       </TableCell>
                       {/* Ngày tạo */}
                       <TableCell>
-                        {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                        <span className="text-xs text-gray-600">
+                          {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
                       </TableCell>
                       {/* Hành động */}
                       <TableCell>
@@ -2173,16 +2175,13 @@ export default function AdminDashboard() {
                   <Input
                     id="availableBalance"
                     type="text"
-                    value={editingUser.balance?.available?.toLocaleString('vi-VN') || '0'}
+                    value={editingUser.balance?.available || 0}
                     onChange={(e) => {
-                      // Lấy giá trị từ input và loại bỏ dấu phẩy
-                      const rawValue = e.target.value.replace(/,/g, '');
-                      
-                      // Chỉ cho phép số
-                      const numericValue = rawValue.replace(/[^0-9]/g, '');
+                      // Lấy giá trị từ input và loại bỏ tất cả ký tự không phải số
+                      const rawValue = e.target.value.replace(/[^0-9]/g, '');
                       
                       // Chuyển đổi thành số
-                      const numberValue = numericValue ? parseInt(numericValue, 10) : 0;
+                      const numberValue = rawValue ? parseInt(rawValue, 10) : 0;
                       
                       // Cập nhật state với giá trị số
                       setEditingUser({
@@ -2190,7 +2189,7 @@ export default function AdminDashboard() {
                         balance: {...editingUser.balance, available: numberValue}
                       });
                     }}
-                    onKeyDown={(e) => {
+                    onKeyPress={(e) => {
                       // Chỉ cho phép số và các phím điều hướng
                       const allowedKeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
                       if (!allowedKeys.includes(e.key) && !/^[0-9]$/.test(e.key)) {
@@ -2199,9 +2198,11 @@ export default function AdminDashboard() {
                     }}
                     placeholder="0"
                     className="font-mono"
+                    inputMode="numeric"
+                    autoComplete="off"
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    Nhập số tiền, hệ thống sẽ tự động hiển thị dấu phẩy phân cách
+                    Nhập số tiền (chỉ số, không cần dấu phẩy)
                   </p>
                 </div>
 
