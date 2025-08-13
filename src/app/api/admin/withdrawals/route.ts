@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
 }
 
 // API để admin xử lý yêu cầu rút tiền
-// Lưu ý: Khi duyệt rút tiền, chỉ thay đổi trạng thái, KHÔNG trừ tiền từ tài khoản người dùng
-// Tiền sẽ được trừ khi admin thực hiện chuyển tiền thực tế
+// Lưu ý: Khi duyệt rút tiền, chỉ thay đổi trạng thái
+// Tiền đã được trừ khi user tạo yêu cầu rút tiền
 export async function POST(req: NextRequest) {
   try {
     // Xác thực admin
@@ -103,25 +103,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'approve') {
-      // Kiểm tra lại số dư user trước khi duyệt
+      // Lấy thông tin user để log
       const user = await db.collection('users').findOne({ _id: withdrawal.user });
-      if (!user) {
-        return NextResponse.json({ message: 'Không tìm thấy người dùng' }, { status: 404 });
+      if (user) {
+        console.log(`[ADMIN WITHDRAWALS] Đã duyệt yêu cầu rút tiền ${withdrawal.amount} VND của user ${user.username}`);
       }
-      
-      // Kiểm tra balance (có thể là object hoặc number)
-      const userBalance = user.balance || { available: 0, frozen: 0 };
-      const availableBalance = typeof userBalance === 'number' ? userBalance : userBalance.available || 0;
-      
-      if (availableBalance < withdrawal.amount) {
-        return NextResponse.json({ 
-          message: `Số dư người dùng không đủ. Hiện tại: ${availableBalance.toLocaleString()} VND, Yêu cầu: ${withdrawal.amount.toLocaleString()} VND` 
-        }, { status: 400 });
-      }
-      
-      // KHÔNG trừ tiền khỏi tài khoản user - chỉ thay đổi trạng thái
-      // Tiền sẽ được trừ khi admin thực hiện chuyển tiền thực tế
-      console.log(`[ADMIN WITHDRAWALS] Đã duyệt yêu cầu rút tiền ${withdrawal.amount} VND của user ${user.username}. Số dư hiện tại: ${availableBalance} VND (không thay đổi)`);
     }
 
     // Cập nhật trạng thái yêu cầu rút tiền
@@ -145,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: action === 'approve' ? 'Đã duyệt yêu cầu rút tiền ' : 'Đã từ chối yêu cầu rút tiền'
+      message: action === 'approve' ? 'Đã duyệt yêu cầu rút tiền' : 'Đã từ chối yêu cầu rút tiền'
     });
 
   } catch (error) {
