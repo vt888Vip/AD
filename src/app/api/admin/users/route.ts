@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
     const users = await db.collection('users')
       .find({})
       .sort({ createdAt: -1 })
-      .limit(50)
       .toArray();
 
     // Lấy thông tin số dư từ field balance
