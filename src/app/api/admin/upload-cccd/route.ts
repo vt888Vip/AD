@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { ObjectId } from 'mongodb';
 import { getMongoDb } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import cloudinary from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,26 +54,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Không tìm thấy người dùng' }, { status: 404 });
     }
 
-    // Tạo thư mục uploads nếu chưa tồn tại
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'cccd');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    // Upload lên Cloudinary
+    const arrayBuffer = await image.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const publicId = `cccd/${targetUserId}-${type}-${Date.now()}`;
 
-    // Tạo tên file unique
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const fileExtension = image.name.split('.').pop();
-    const fileName = `cccd_${targetUserId}_${type}_${timestamp}_${randomString}.${fileExtension}`;
-    const filePath = join(uploadsDir, fileName);
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: 'cccd',
+          public_id: publicId,
+          resource_type: 'image',
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(buffer);
+    });
 
-    // Convert file to buffer and save
-    const bytes = await image.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Tạo URL cho ảnh
-    const imageUrl = `/uploads/cccd/${fileName}`;
+    const imageUrl = (uploadResult as any).secure_url;
 
     // Cập nhật thông tin CCCD trong database
     await db.collection('users').updateOne(
