@@ -42,8 +42,7 @@ export async function GET(request: NextRequest) {
         role: user.role || 'user',
         balance: {
           available: availableBalance,
-          frozen: frozenBalance,
-          total: availableBalance + frozenBalance
+          frozen: frozenBalance
         },
         status: user.status || { active: true, betLocked: false, withdrawLocked: false },
         verification: user.verification || { verified: false },

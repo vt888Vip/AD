@@ -81,8 +81,7 @@ export async function GET(request: NextRequest) {
       // Thông tin khác
       balance: {
         available: availableBalance,
-        frozen: frozenBalance,
-        total: availableBalance + frozenBalance
+        frozen: frozenBalance
       },
       verification: user.verification || { 
         verified: false, 

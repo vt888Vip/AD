@@ -606,6 +606,9 @@ export default function UsersManagement() {
                           )}
                         </div>
                         <div className="text-[10px] text-gray-500">
+                          Tổng: {((user.balance?.available || 0) + (user.balance?.frozen || 0)).toLocaleString()}đ
+                        </div>
+                        <div className="text-[10px] text-gray-500">
                           Nạp: {user.totalDeposited?.toLocaleString() || 0}đ
                         </div>
                       </div>
